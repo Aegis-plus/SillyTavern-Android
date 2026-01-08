@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SillyTavern Launcher</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Main Screen -->
+        <div id="main-screen">
+            <div class="logo-area">
+                <h1>SillyTavern</h1>
+                <p>Launcher</p>
+            </div>
+
+            <div class="status-area">
+                <p id="current-url-display">No URL Set</p>
+            </div>
+
+            <button id="connect-btn" class="primary-btn">
+                <i class="fas fa-plug"></i> Connect
+            </button>
+
+            <button id="settings-btn" class="secondary-btn">
+                <i class="fas fa-cog"></i> Settings
+            </button>
+        </div>
+
+        <!-- Settings Screen -->
+        <div id="settings-screen" class="hidden">
+            <div class="header">
+                <h2>Settings</h2>
+            </div>
+
+            <div class="input-group">
+                <label for="url-input">SillyTavern URL</label>
+                <input type="url" id="url-input" placeholder="http://192.168.1.x:8000" />
+                <p class="hint">Enter the full URL including http:// or https://</p>
+            </div>
+
+            <div class="actions">
+                <button id="save-btn" class="primary-btn">Save</button>
+                <button id="cancel-btn" class="secondary-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

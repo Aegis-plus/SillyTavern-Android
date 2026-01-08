@@ -1,0 +1,12 @@
+{
+  "appId": "com.sillytavern.android",
+  "appName": "SillyTavern",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "http",
+    "allowNavigation": [
+      "*"
+    ],
+    "cleartext": true
+  }
+}

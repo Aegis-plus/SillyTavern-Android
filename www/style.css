@@ -1,0 +1,120 @@
+:root {
+    --primary-color: #ff6b6b;
+    --secondary-color: #4ecdc4;
+    --bg-color: #2f3542;
+    --text-color: #ffffff;
+    --card-bg: #57606f;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    user-select: none;
+}
+
+.container {
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Main Screen */
+.logo-area h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0;
+    color: var(--primary-color);
+}
+
+.logo-area p {
+    margin-top: 0.5rem;
+    font-size: 1.2rem;
+    opacity: 0.8;
+}
+
+.status-area {
+    background-color: var(--card-bg);
+    padding: 1rem;
+    border-radius: 10px;
+    margin: 2rem 0;
+    word-break: break-all;
+}
+
+/* Buttons */
+button {
+    width: 100%;
+    padding: 15px;
+    margin: 10px 0;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+.primary-btn {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.secondary-btn {
+    background-color: transparent;
+    border: 2px solid var(--secondary-color);
+    color: var(--secondary-color);
+}
+
+/* Settings Screen */
+.input-group {
+    text-align: left;
+    margin: 2rem 0;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+input[type="url"] {
+    width: 100%;
+    padding: 12px;
+    border-radius: 6px;
+    border: none;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+input[type="url"]:focus {
+    outline: 2px solid var(--secondary-color);
+}
+
+.hint {
+    font-size: 0.8rem;
+    opacity: 0.6;
+    margin-top: 0.5rem;
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+}
