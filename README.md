@@ -1,47 +1,65 @@
 # SillyTavern Android Launcher
 
-This is a simple Android launcher for [SillyTavern](https://github.com/SillyTavern/SillyTavern). It wraps your self-hosted SillyTavern instance in a WebView, allowing for:
+[![Build Android APK](https://github.com/SillyTavern/SillyTavern-Android/actions/workflows/build.yml/badge.svg)](https://github.com/SillyTavern/SillyTavern-Android/actions/workflows/build.yml)
 
--   **Full Screen Experience**
--   **File Uploads** (Images, etc.)
--   **Camera & Microphone Access** (for multimodal features)
+A lightweight Android wrapper for [SillyTavern](https://github.com/SillyTavern/SillyTavern). This application provides a dedicated WebView environment to access your self-hosted SillyTavern instance with native-like features.
 
-## Download
+## ✨ Features
 
-You can download the latest APK from the [Releases](../../releases) page.
+-   **Full-Screen Experience:** Removes browser UI elements for an immersive chat experience.
+-   **Native Permissions:** Seamless support for file uploads (images, characters) and camera/microphone access for multimodal features.
+-   **Persistent Settings:** Save your instance URL and connect with a single tap.
+-   **Lightweight:** Minimal overhead compared to running a full mobile browser.
 
-## How to Build (No Android Studio Required)
+## 🚀 Getting Started
 
-We use **GitHub Actions** to build the APK automatically.
+### Download
+The easiest way to get started is to download the latest pre-built APK from the [Releases](../../releases) page.
 
-### Option 1: Download from Releases (Recommended)
-1.  Go to the [Releases](../../releases) page.
-2.  Download the latest `SillyTavern-vX.X.X.apk`.
-3.  Install it on your Android device.
+### Installation
+1.  Download the `SillyTavern-vX.X.X.apk` file.
+2.  Open the file on your Android device.
+3.  If prompted, allow installation from unknown sources.
+4.  Follow the on-screen instructions to complete the installation.
 
-### Option 2: Build Manually via GitHub Actions
-1.  **Fork or Push** this repository to your own GitHub account.
-2.  Go to the **Actions** tab in your repository.
-3.  You should see a workflow named "Build Android APK" running (or you can trigger it manually).
-4.  Once the build finishes (green checkmark), click on the workflow run.
-5.  Scroll down to the **Artifacts** section.
-6.  Download **SillyTavern-Debug**.
-7.  Unzip the file to find `app-debug.apk`.
-8.  Transfer this APK to your Android phone and install it.
+## 🛠️ Setup & Usage
 
-## Setup on Phone
+1.  **Launch the App:** Open SillyTavern from your app drawer.
+2.  **Configure URL:**
+    -   Tap the **Settings** button.
+    -   Enter the full URL of your SillyTavern instance (e.g., `http://192.168.1.5:8000` or your public tunnel URL).
+    -   *Note: Ensure your phone can reach the host (e.g., same Wi-Fi or public IP).*
+3.  **Save & Connect:**
+    -   Tap **Save** to store the configuration.
+    -   Tap **Connect** to load your SillyTavern interface.
 
-1.  Open the App.
-2.  Click **Settings**.
-3.  Enter the URL of your SillyTavern instance (e.g., `http://192.168.1.5:8000` or your ngrok/Cloudflare URL).
-    *   *Note: If using a local IP, make sure your phone is on the same Wi-Fi network.*
-4.  Click **Save**.
-5.  Click **Connect**.
+## 🏗️ Building from Source
 
-## Development
+You can build the APK yourself using GitHub Actions or locally.
 
-This project uses [Capacitor](https://capacitorjs.com/).
+### Using GitHub Actions (No Android Studio Required)
+1.  **Fork** this repository.
+2.  Enable **Actions** in your fork's settings.
+3.  The workflow will trigger on every push, or you can run it manually via the **Actions** tab.
+4.  Once complete, download the **SillyTavern-Release** artifact from the workflow run summary.
 
--   `www/` contains the launcher UI (HTML/CSS/JS).
--   `android/` contains the native Android project.
--   `MainActivity.java` handles the WebView permissions.
+### Local Development
+This project is built with [Capacitor](https://capacitorjs.com/).
+
+-   **Requirements:** Node.js (>=22.0.0), Android Studio, and JDK 21.
+-   **Structure:**
+    -   [`www/`](www/): Contains the launcher's configuration UI.
+    -   [`android/`](android/): The native Android project.
+    -   [`MainActivity.java`](android/app/src/main/java/com/sillytavern/android/MainActivity.java): Handles WebView permissions and core logic.
+
+```bash
+# Install dependencies
+npm install
+
+# Sync changes to the Android project
+npx cap sync android
+```
+
+## 📄 License
+
+This project is licensed under the [ISC License](LICENSE).

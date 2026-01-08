@@ -42,20 +42,25 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleRelease --no-daemon
 
-      - name: Upload APK
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: SillyTavern-Debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: SillyTavern-Release
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
 
-      - name: Rename APK for Release
+      - name: Prepare Release Files
         if: startsWith(github.ref, 'refs/tags/')
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk SillyTavern-${{ github.ref_name }}.apk
+        run: |
+          cp android/app/build/outputs/apk/release/app-release-unsigned.apk SillyTavern-${{ github.ref_name }}.apk
 
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          files: SillyTavern-${{ github.ref_name }}.apk
+          files: |
+            SillyTavern-${{ github.ref_name }}.apk
+          generate_release_notes: true
+          draft: false
+          prerelease: false
