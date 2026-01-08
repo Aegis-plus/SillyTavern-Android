@@ -1,5 +1,15 @@
 apply plugin: 'com.android.application'
 
+import groovy.json.JsonSlurper
+
+def getPackageJson() {
+    def inputFile = new File(projectDir, "../../package.json")
+    def packageJson = new JsonSlurper().parseText(inputFile.text)
+    return packageJson
+}
+
+def packageJson = getPackageJson()
+
 android {
     namespace = "com.sillytavern.android"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +17,8 @@ android {
         applicationId "com.sillytavern.android"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode System.getenv("GITHUB_RUN_NUMBER") ? System.getenv("GITHUB_RUN_NUMBER").toInteger() : 1
+        versionName packageJson.version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

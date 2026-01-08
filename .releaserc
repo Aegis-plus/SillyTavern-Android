@@ -1,0 +1,18 @@
+{
+  "branches": ["main", "master"],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    ["@semantic-release/npm", {
+      "npmPublish": false
+    }],
+    ["@semantic-release/exec", {
+      "prepareCmd": "npx cap sync android && cd android && chmod +x gradlew && ./gradlew assembleRelease --no-daemon"
+    }],
+    ["@semantic-release/github", {
+      "assets": [
+        {"path": "android/app/build/outputs/apk/release/app-release-unsigned.apk", "label": "SillyTavern-Android-v${nextRelease.version}.apk"}
+      ]
+    }]
+  ]
+}

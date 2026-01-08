@@ -1,7 +1,5 @@
 # SillyTavern Android Launcher
 
-[![Build Android APK](https://github.com/SillyTavern/SillyTavern-Android/actions/workflows/build.yml/badge.svg)](https://github.com/SillyTavern/SillyTavern-Android/actions/workflows/build.yml)
-
 A lightweight Android wrapper for [SillyTavern](https://github.com/SillyTavern/SillyTavern). This application provides a dedicated WebView environment to access your self-hosted SillyTavern instance with native-like features.
 
 ## ✨ Features
