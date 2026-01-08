@@ -11,7 +11,7 @@
     }],
     ["@semantic-release/github", {
       "assets": [
-        {"path": "android/app/build/outputs/apk/release/app-release-unsigned.apk", "label": "SillyTavern-Android-v${nextRelease.version}.apk"}
+        {"path": "android/app/build/outputs/apk/release/app-release.apk", "label": "SillyTavern-Android-v${nextRelease.version}.apk"}
       ]
     }]
   ]

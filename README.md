@@ -58,6 +58,24 @@ npm install
 npx cap sync android
 ```
 
+### Signing the App
+
+To create a distributable (signed) APK, you need a keystore.
+
+1.  **Generate a Keystore:**
+    ```bash
+    keytool -genkey -v -keystore release-key.keystore -alias sillytavern -keyalg RSA -keysize 2048 -validity 10000
+    ```
+2.  **Configure Environment Variables:**
+    The build script expects the following environment variables:
+    - `RELEASE_STORE_FILE`: Path to your keystore file (defaults to `release-key.keystore` in `android/app`).
+    - `RELEASE_STORE_PASSWORD`: Your keystore password.
+    - `RELEASE_KEY_ALIAS`: Your key alias (e.g., `sillytavern`).
+    - `RELEASE_KEY_PASSWORD`: Your key password.
+
+3.  **GitHub Actions Setup:**
+    Add these as **Secrets** in your GitHub repository settings to enable signed releases via the automated workflow.
+
 ## 📄 License
 
 This project is licensed under the [ISC License](LICENSE).
