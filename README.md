@@ -66,11 +66,19 @@ To create a distributable (signed) APK, you need a keystore.
     ```bash
     keytool -genkey -v -keystore release-key.keystore -alias sillytavern -keyalg RSA -keysize 2048 -validity 10000
     ```
-2.  **Configure Environment Variables:**
-    The build script expects the following environment variables:
+2.  **Configure Build Credentials:**
+    The build script supports both environment variables and Gradle properties.
+|
+    **Option A: Command Line (Recommended for local)**
+    ```bash
+    cd android
+    ./gradlew assembleRelease -PRELEASE_STORE_PASSWORD=your_pass -PRELEASE_KEY_ALIAS=your_alias -PRELEASE_KEY_PASSWORD=your_pass
+    ```
+|
+    **Option B: Environment Variables**
     - `RELEASE_STORE_FILE`: Path to your keystore file (defaults to `release-key.keystore` in `android/app`).
     - `RELEASE_STORE_PASSWORD`: Your keystore password.
-    - `RELEASE_KEY_ALIAS`: Your key alias (e.g., `sillytavern`).
+    - `RELEASE_KEY_ALIAS`: Your key alias.
     - `RELEASE_KEY_PASSWORD`: Your key password.
 
 3.  **GitHub Actions Setup:**

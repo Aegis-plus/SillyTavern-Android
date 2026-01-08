@@ -28,10 +28,10 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file(System.getenv("RELEASE_STORE_FILE") ?: "release-key.keystore")
-            storePassword System.getenv("RELEASE_STORE_PASSWORD")
-            keyAlias System.getenv("RELEASE_KEY_ALIAS")
-            keyPassword System.getenv("RELEASE_KEY_PASSWORD")
+            storeFile file(project.findProperty("RELEASE_STORE_FILE") ?: System.getenv("RELEASE_STORE_FILE") ?: "release-key.keystore")
+            storePassword project.findProperty("RELEASE_STORE_PASSWORD") ?: System.getenv("RELEASE_STORE_PASSWORD")
+            keyAlias project.findProperty("RELEASE_KEY_ALIAS") ?: System.getenv("RELEASE_KEY_ALIAS")
+            keyPassword project.findProperty("RELEASE_KEY_PASSWORD") ?: System.getenv("RELEASE_KEY_PASSWORD")
         }
     }
     buildTypes {
