@@ -1,5 +1,13 @@
 {
-  "branches": ["main", "master"],
+  "branches": [
+    "main",
+    "master",
+    {
+      "name": "dev",
+      "prerelease": true,
+      "channel": "dev"
+    }
+  ],
   "plugins": [
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
@@ -8,7 +16,8 @@
     }],
     ["@semantic-release/github", {
       "assets": [
-        {"path": "android/app/build/outputs/apk/release/app-release.apk", "label": "SillyTavern-Android-v${nextRelease.version}.apk"}
+        {"path": "android/app/build/outputs/apk/release/app-release.apk", "label": "SillyTavern-Android-v${nextRelease.version}.apk"},
+        {"path": "android/app/build/outputs/apk/debug/app-debug.apk", "label": "SillyTavern-Android-dev-v${nextRelease.version}.apk"}
       ]
     }]
   ]

@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - master
+      - dev
   workflow_dispatch:
 
 jobs:
@@ -38,12 +39,18 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      - name: Build Android Release
+      - name: Build Android
         run: |
           npx cap sync android
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          if [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
+            ./gradlew assembleDebug --no-daemon
+            echo "APK_PATH=app/build/outputs/apk/debug/app-debug.apk" >> $GITHUB_ENV
+          else
+            ./gradlew assembleRelease --no-daemon
+            echo "APK_PATH=app/build/outputs/apk/release/app-release.apk" >> $GITHUB_ENV
+          fi
         env:
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
