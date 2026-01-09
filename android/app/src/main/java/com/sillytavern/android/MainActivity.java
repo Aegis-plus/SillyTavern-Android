@@ -7,6 +7,8 @@ import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
@@ -21,6 +23,15 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         // Enable edge-to-edge display (content behind system bars)
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+
+        // Apply window insets as padding to avoid obstruction
+        ViewCompat.setOnApplyWindowInsetsListener(getWindow().getDecorView(), (v, windowInsets) -> {
+            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            // Apply the insets as padding to the view. This ensures that the content
+            // is not obscured by the system bars.
+            v.setPadding(insets.left, insets.top, insets.right, insets.bottom);
+            return WindowInsetsCompat.CONSUMED;
+        });
 
         // Configure system bars
         WindowInsetsControllerCompat windowInsetsController =
