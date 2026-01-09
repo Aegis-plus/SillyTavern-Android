@@ -24,12 +24,16 @@ public class MainActivity extends BridgeActivity {
         // Enable edge-to-edge display (content behind system bars)
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
-        // Apply window insets as padding to avoid obstruction
+        // Apply window insets as padding to avoid obstruction and handle keyboard
         ViewCompat.setOnApplyWindowInsetsListener(getWindow().getDecorView(), (v, windowInsets) -> {
-            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
-            // Apply the insets as padding to the view. This ensures that the content
-            // is not obscured by the system bars.
-            v.setPadding(insets.left, insets.top, insets.right, insets.bottom);
+            Insets systemBars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            Insets ime = windowInsets.getInsets(WindowInsetsCompat.Type.ime());
+
+            // Apply the insets as padding to the view.
+            // We use the maximum of system bars and IME for the bottom to ensure
+            // content is pushed up when keyboard appears.
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, Math.max(systemBars.bottom, ime.bottom));
+            
             return WindowInsetsCompat.CONSUMED;
         });
 
