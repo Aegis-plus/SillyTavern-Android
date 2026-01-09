@@ -8,6 +8,8 @@ import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -19,6 +21,16 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         // Enable edge-to-edge display (content behind system bars)
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+
+        // Configure system bars
+        WindowInsetsControllerCompat windowInsetsController =
+                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        if (windowInsetsController != null) {
+            // Set light status bar icons (false means light icons on dark background)
+            windowInsetsController.setAppearanceLightStatusBars(false);
+            // Set light navigation bar icons
+            windowInsetsController.setAppearanceLightNavigationBars(false);
+        }
     }
 
     @Override
