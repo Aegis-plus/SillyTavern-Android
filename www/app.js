@@ -14,7 +14,18 @@ const cancelBtn = document.getElementById('cancel-btn');
 
 function init() {
     const storedUrl = localStorage.getItem(STORAGE_KEY);
-    updateDisplay(storedUrl);
+    
+    if (!storedUrl) {
+        // First time open - set default and show settings
+        const defaultUrl = 'http://127.0.0.1:8000';
+        localStorage.setItem(STORAGE_KEY, defaultUrl);
+        updateDisplay(defaultUrl);
+        showSettings();
+    } else {
+        // URL exists - auto connect
+        updateDisplay(storedUrl);
+        connect();
+    }
 }
 
 function updateDisplay(url) {
