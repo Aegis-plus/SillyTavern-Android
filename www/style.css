@@ -94,7 +94,9 @@ button:active {
     font-weight: bold;
 }
 
-input[type="url"] {
+input[type="url"],
+input[type="text"],
+input[type="password"] {
     width: 100%;
     padding: 12px;
     border-radius: 6px;
@@ -105,8 +107,28 @@ input[type="url"] {
     box-sizing: border-box;
 }
 
-input[type="url"]:focus {
+input[type="url"]:focus,
+input[type="text"]:focus,
+input[type="password"]:focus {
     outline: 2px solid var(--secondary-color);
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.checkbox-group label {
+    margin-bottom: 0;
+    cursor: pointer;
 }
 
 .hint {

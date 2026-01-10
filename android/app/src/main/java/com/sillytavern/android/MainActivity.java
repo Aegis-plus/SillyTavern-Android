@@ -1,8 +1,12 @@
 package com.sillytavern.android;
 
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
+import android.webkit.HttpAuthHandler;
+import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -13,10 +17,14 @@ import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.BridgeWebViewClient;
 
 public class MainActivity extends BridgeActivity {
     private static final int FILE_CHOOSER_RESULT_CODE = 1;
     private ValueCallback<Uri[]> filePathCallback;
+    private static final String PREFS_NAME = "SillyTavernPrefs";
+    private static final String KEY_AUTH_USER = "auth_user";
+    private static final String KEY_AUTH_PASS = "auth_pass";
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -55,6 +63,25 @@ public class MainActivity extends BridgeActivity {
         // Get the WebView instance from Capacitor's Bridge
         WebView webView = this.getBridge().getWebView();
 
+        // Add Javascript Interface for Auth
+        webView.addJavascriptInterface(new AuthBridge(this), "AuthBridge");
+
+        // Set custom WebViewClient to handle Basic Auth
+        webView.setWebViewClient(new BridgeWebViewClient(this.getBridge()) {
+            @Override
+            public void onReceivedHttpAuthRequest(WebView view, HttpAuthHandler handler, String host, String realm) {
+                SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                String user = prefs.getString(KEY_AUTH_USER, null);
+                String pass = prefs.getString(KEY_AUTH_PASS, null);
+
+                if (user != null && !user.isEmpty() && pass != null) {
+                    handler.proceed(user, pass);
+                } else {
+                    super.onReceivedHttpAuthRequest(view, handler, host, realm);
+                }
+            }
+        });
+
         // Set a custom WebChromeClient to handle permission requests and file selection
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -82,6 +109,32 @@ public class MainActivity extends BridgeActivity {
                 return true;
             }
         });
+    }
+
+    public class AuthBridge {
+        Context mContext;
+
+        AuthBridge(Context c) {
+            mContext = c;
+        }
+
+        @JavascriptInterface
+        public void setCredentials(String user, String pass) {
+            SharedPreferences prefs = mContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.putString(KEY_AUTH_USER, user);
+            editor.putString(KEY_AUTH_PASS, pass);
+            editor.apply();
+        }
+
+        @JavascriptInterface
+        public void clearCredentials() {
+            SharedPreferences prefs = mContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.remove(KEY_AUTH_USER);
+            editor.remove(KEY_AUTH_PASS);
+            editor.apply();
+        }
     }
 
     @Override
