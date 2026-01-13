@@ -10,6 +10,7 @@ import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -65,6 +66,12 @@ public class MainActivity extends BridgeActivity {
 
         // Add Javascript Interface for Auth
         webView.addJavascriptInterface(new AuthBridge(this), "AuthBridge");
+
+        // Enable Zoom Support
+        WebSettings webSettings = webView.getSettings();
+        webSettings.setSupportZoom(true);
+        webSettings.setBuiltInZoomControls(true);
+        webSettings.setDisplayZoomControls(false);
 
         // Set custom WebViewClient to handle Basic Auth
         webView.setWebViewClient(new BridgeWebViewClient(this.getBridge()) {
