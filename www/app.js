@@ -80,8 +80,24 @@ function saveSettings() {
     let url = urlInput.value.trim();
     if (!url) return;
 
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        url = 'http://' + url;
+    // Robust URL Validation
+    try {
+        // Auto-prepend http:// if missing protocol
+        if (!/^https?:\/\//i.test(url)) {
+            url = 'http://' + url;
+        }
+        
+        const validUrl = new URL(url);
+        // Normalize the URL string
+        url = validUrl.href;
+        
+        // Remove trailing slash if present for cleaner display/storage (optional but nice)
+        if (url.endsWith('/')) {
+             url = url.slice(0, -1);
+        }
+    } catch (e) {
+        alert('Invalid URL format. Please check the address.');
+        return;
     }
 
     localStorage.setItem(STORAGE_KEY, url);
