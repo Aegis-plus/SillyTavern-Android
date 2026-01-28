@@ -141,3 +141,16 @@ input[type="password"]:focus {
     display: flex;
     gap: 10px;
 }
+
+.text-link {
+    background: none;
+    border: none;
+    color: var(--secondary-color);
+    text-decoration: underline;
+    font-size: 0.9rem;
+    padding: 5px;
+    margin: 0;
+    width: auto;
+    display: inline-block;
+}
+

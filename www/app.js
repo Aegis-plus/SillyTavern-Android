@@ -2,6 +2,7 @@ const STORAGE_KEY = 'sillytavern_url';
 const AUTH_ENABLED_KEY = 'sillytavern_auth_enabled';
 const AUTH_USER_KEY = 'sillytavern_auth_user';
 const AUTH_PASS_KEY = 'sillytavern_auth_pass';
+const BG_MODE_KEY = 'sillytavern_bg_mode';
 
 // Elements
 const mainScreen = document.getElementById('main-screen');
@@ -12,6 +13,8 @@ const authToggle = document.getElementById('auth-toggle');
 const authFields = document.getElementById('auth-fields');
 const authUser = document.getElementById('auth-user');
 const authPass = document.getElementById('auth-pass');
+const bgToggle = document.getElementById('bg-toggle');
+const batteryOptBtn = document.getElementById('battery-opt-btn');
 
 // Buttons
 const connectBtn = document.getElementById('connect-btn');
@@ -24,6 +27,7 @@ function init() {
     
     // Sync auth settings to native side on startup
     syncAuthToNative();
+    syncBackgroundToNative();
 
     if (!storedUrl) {
         // First time open - set default and show settings
@@ -60,7 +64,28 @@ function showSettings() {
     authUser.value = localStorage.getItem(AUTH_USER_KEY) || '';
     authPass.value = localStorage.getItem(AUTH_PASS_KEY) || '';
     
+    bgToggle.checked = localStorage.getItem(BG_MODE_KEY) === 'true';
+    checkBatteryOptimization();
+    
     toggleAuthFields();
+}
+
+function checkBatteryOptimization() {
+    if (window.BackgroundBridge && window.BackgroundBridge.isIgnoringBatteryOptimizations) {
+        if (window.BackgroundBridge.isIgnoringBatteryOptimizations()) {
+            batteryOptBtn.classList.add('hidden');
+        } else {
+            batteryOptBtn.classList.remove('hidden');
+        }
+    }
+}
+
+function requestBatteryOptimization() {
+    if (window.BackgroundBridge && window.BackgroundBridge.requestIgnoreBatteryOptimizations) {
+        window.BackgroundBridge.requestIgnoreBatteryOptimizations();
+        // Check again after a delay in case they came back
+        setTimeout(checkBatteryOptimization, 5000);
+    }
 }
 
 function toggleAuthFields() {
@@ -96,9 +121,19 @@ function saveSettings() {
         // For now, we keep them in storage but won't send them to native if disabled
     }
 
+    localStorage.setItem(BG_MODE_KEY, bgToggle.checked);
+
     syncAuthToNative();
+    syncBackgroundToNative();
     updateDisplay(url);
     hideSettings();
+}
+
+function syncBackgroundToNative() {
+    const enabled = localStorage.getItem(BG_MODE_KEY) === 'true';
+    if (window.BackgroundBridge && window.BackgroundBridge.setBackgroundMode) {
+        window.BackgroundBridge.setBackgroundMode(enabled);
+    }
 }
 
 function syncAuthToNative() {
@@ -130,5 +165,6 @@ cancelBtn.addEventListener('click', hideSettings);
 saveBtn.addEventListener('click', saveSettings);
 connectBtn.addEventListener('click', connect);
 authToggle.addEventListener('change', toggleAuthFields);
+batteryOptBtn.addEventListener('click', requestBatteryOptimization);
 
 init();

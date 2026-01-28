@@ -4,7 +4,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.webkit.HttpAuthHandler;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
@@ -25,6 +28,7 @@ public class MainActivity extends BridgeActivity {
     private static final String PREFS_NAME = "SillyTavernPrefs";
     private static final String KEY_AUTH_USER = "auth_user";
     private static final String KEY_AUTH_PASS = "auth_pass";
+    private static final String KEY_BACKGROUND_MODE = "background_mode";
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -63,8 +67,12 @@ public class MainActivity extends BridgeActivity {
         // Get the WebView instance from Capacitor's Bridge
         WebView webView = this.getBridge().getWebView();
 
-        // Add Javascript Interface for Auth
+        // Add Javascript Interface for Auth & Background
         webView.addJavascriptInterface(new AuthBridge(this), "AuthBridge");
+        webView.addJavascriptInterface(new BackgroundBridge(this), "BackgroundBridge");
+
+        // Sync background service state
+        syncBackgroundService();
 
         // Set custom WebViewClient to handle Basic Auth
         webView.setWebViewClient(new BridgeWebViewClient(this.getBridge()) {
@@ -109,6 +117,54 @@ public class MainActivity extends BridgeActivity {
                 return true;
             }
         });
+    }
+
+    private void syncBackgroundService() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        boolean enabled = prefs.getBoolean(KEY_BACKGROUND_MODE, false);
+        Intent serviceIntent = new Intent(this, KeepAliveService.class);
+        if (enabled) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent);
+            } else {
+                startService(serviceIntent);
+            }
+        } else {
+            stopService(serviceIntent);
+        }
+    }
+
+    public class BackgroundBridge {
+        Context mContext;
+
+        BackgroundBridge(Context c) {
+            mContext = c;
+        }
+
+        @JavascriptInterface
+        public void setBackgroundMode(boolean enabled) {
+            SharedPreferences prefs = mContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            prefs.edit().putBoolean(KEY_BACKGROUND_MODE, enabled).apply();
+            syncBackgroundService();
+        }
+
+        @JavascriptInterface
+        public boolean isIgnoringBatteryOptimizations() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PowerManager pm = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
+                return pm.isIgnoringBatteryOptimizations(mContext.getPackageName());
+            }
+            return true;
+        }
+
+        @JavascriptInterface
+        public void requestIgnoreBatteryOptimizations() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                intent.setData(Uri.parse("package:" + mContext.getPackageName()));
+                mContext.startActivity(intent);
+            }
+        }
     }
 
     public class AuthBridge {
