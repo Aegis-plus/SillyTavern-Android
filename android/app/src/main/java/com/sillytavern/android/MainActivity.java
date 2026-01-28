@@ -13,14 +13,20 @@ import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
+import androidx.security.crypto.EncryptedSharedPreferences;
+import androidx.security.crypto.MasterKey;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebViewClient;
+
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 
 public class MainActivity extends BridgeActivity {
     private static final int FILE_CHOOSER_RESULT_CODE = 1;
@@ -29,6 +35,25 @@ public class MainActivity extends BridgeActivity {
     private static final String KEY_AUTH_USER = "auth_user";
     private static final String KEY_AUTH_PASS = "auth_pass";
     private static final String KEY_BACKGROUND_MODE = "background_mode";
+
+    private SharedPreferences getSafeSharedPreferences(Context context) {
+        try {
+            MasterKey masterKey = new MasterKey.Builder(context)
+                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                    .build();
+
+            return EncryptedSharedPreferences.create(
+                    context,
+                    PREFS_NAME,
+                    masterKey,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            );
+        } catch (GeneralSecurityException | IOException e) {
+            e.printStackTrace();
+            return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        }
+    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -74,11 +99,19 @@ public class MainActivity extends BridgeActivity {
         // Sync background service state
         syncBackgroundService();
 
+        // Enable Zoom Support
+        WebSettings webSettings = webView.getSettings();
+        webSettings.setSupportZoom(true);
+        webSettings.setBuiltInZoomControls(true);
+        webSettings.setDisplayZoomControls(false);
+        webSettings.setUseWideViewPort(true);
+        webSettings.setLoadWithOverviewMode(true);
+
         // Set custom WebViewClient to handle Basic Auth
         webView.setWebViewClient(new BridgeWebViewClient(this.getBridge()) {
             @Override
             public void onReceivedHttpAuthRequest(WebView view, HttpAuthHandler handler, String host, String realm) {
-                SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                SharedPreferences prefs = getSafeSharedPreferences(MainActivity.this);
                 String user = prefs.getString(KEY_AUTH_USER, null);
                 String pass = prefs.getString(KEY_AUTH_PASS, null);
 
@@ -176,7 +209,7 @@ public class MainActivity extends BridgeActivity {
 
         @JavascriptInterface
         public void setCredentials(String user, String pass) {
-            SharedPreferences prefs = mContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            SharedPreferences prefs = getSafeSharedPreferences(mContext);
             SharedPreferences.Editor editor = prefs.edit();
             editor.putString(KEY_AUTH_USER, user);
             editor.putString(KEY_AUTH_PASS, pass);
@@ -185,7 +218,7 @@ public class MainActivity extends BridgeActivity {
 
         @JavascriptInterface
         public void clearCredentials() {
-            SharedPreferences prefs = mContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            SharedPreferences prefs = getSafeSharedPreferences(mContext);
             SharedPreferences.Editor editor = prefs.edit();
             editor.remove(KEY_AUTH_USER);
             editor.remove(KEY_AUTH_PASS);
