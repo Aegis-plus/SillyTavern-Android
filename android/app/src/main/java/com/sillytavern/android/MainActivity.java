@@ -27,6 +27,9 @@ import com.getcapacitor.BridgeWebViewClient;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import android.view.ViewGroup;
+import androidx.activity.OnBackPressedCallback;
 
 public class MainActivity extends BridgeActivity {
     private static final int FILE_CHOOSER_RESULT_CODE = 1;
@@ -35,6 +38,7 @@ public class MainActivity extends BridgeActivity {
     private static final String KEY_AUTH_USER = "auth_user";
     private static final String KEY_AUTH_PASS = "auth_pass";
     private static final String KEY_BACKGROUND_MODE = "background_mode";
+    private SwipeRefreshLayout swipeRefreshLayout;
 
     private SharedPreferences getSafeSharedPreferences(Context context) {
         try {
@@ -47,8 +51,7 @@ public class MainActivity extends BridgeActivity {
                     PREFS_NAME,
                     masterKey,
                     EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            );
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM);
         } catch (GeneralSecurityException | IOException e) {
             e.printStackTrace();
             return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
@@ -67,22 +70,79 @@ public class MainActivity extends BridgeActivity {
             Insets ime = windowInsets.getInsets(WindowInsetsCompat.Type.ime());
 
             // Apply the insets as padding to the view.
-            // We use the maximum of system bars and IME for the bottom to ensure
-            // content is pushed up when keyboard appears.
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, Math.max(systemBars.bottom, ime.bottom));
-            
+
             return WindowInsetsCompat.CONSUMED;
         });
 
         // Configure system bars
-        WindowInsetsControllerCompat windowInsetsController =
-                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        WindowInsetsControllerCompat windowInsetsController = WindowCompat.getInsetsController(getWindow(),
+                getWindow().getDecorView());
         if (windowInsetsController != null) {
-            // Set light status bar icons (false means light icons on dark background)
             windowInsetsController.setAppearanceLightStatusBars(false);
-            // Set light navigation bar icons
             windowInsetsController.setAppearanceLightNavigationBars(false);
         }
+
+        setupSwipeRefresh();
+        setupBackNavigation();
+    }
+
+    private void setupSwipeRefresh() {
+        // Wrap the WebView in a SwipeRefreshLayout programmatically
+        WebView webView = getBridge().getWebView();
+        if (webView != null) {
+            ViewGroup parent = (ViewGroup) webView.getParent();
+            if (parent != null) {
+                parent.removeView(webView);
+
+                swipeRefreshLayout = new SwipeRefreshLayout(this);
+                swipeRefreshLayout.setLayoutParams(new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT));
+
+                // Add WebView to SwipeRefreshLayout
+                swipeRefreshLayout.addView(webView, new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT));
+
+                // Re-add SwipeRefreshLayout to the original parent
+                parent.addView(swipeRefreshLayout);
+
+                // Configure SwipeRefresh behavior
+                swipeRefreshLayout.setOnRefreshListener(() -> {
+                    webView.reload();
+                    // Stop spinner after a short delay via WebViewClient onPageFinished or manual
+                    // timeout
+                    // Backup timeout in case onPageFinished doesn't fire
+                    new android.os.Handler().postDelayed(() -> {
+                        if (swipeRefreshLayout.isRefreshing()) {
+                            swipeRefreshLayout.setRefreshing(false);
+                        }
+                    }, 5000);
+                });
+
+                // Only enable swipe refresh when scrolled to top
+                webView.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
+                    swipeRefreshLayout.setEnabled(scrollY == 0);
+                });
+            }
+        }
+    }
+
+    private void setupBackNavigation() {
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                WebView webView = getBridge().getWebView();
+                if (webView != null && webView.canGoBack()) {
+                    webView.goBack();
+                } else {
+                    // Standard system back behavior (minimize app)
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                }
+            }
+        });
     }
 
     @Override
@@ -106,8 +166,10 @@ public class MainActivity extends BridgeActivity {
         webSettings.setDisplayZoomControls(false);
         webSettings.setUseWideViewPort(true);
         webSettings.setLoadWithOverviewMode(true);
+        webSettings.setDomStorageEnabled(true);
+        webSettings.setJavaScriptEnabled(true);
 
-        // Set custom WebViewClient to handle Basic Auth
+        // Set custom WebViewClient to handle Basic Auth and Zoom Fix
         webView.setWebViewClient(new BridgeWebViewClient(this.getBridge()) {
             @Override
             public void onReceivedHttpAuthRequest(WebView view, HttpAuthHandler handler, String host, String realm) {
@@ -121,6 +183,28 @@ public class MainActivity extends BridgeActivity {
                     super.onReceivedHttpAuthRequest(view, handler, host, realm);
                 }
             }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                if (swipeRefreshLayout != null) {
+                    swipeRefreshLayout.setRefreshing(false);
+                }
+
+                // Force create viewport meta tag if not present or update it to allow
+                // user-scalable
+                // This script checks if viewport exists, updates it, or creates it.
+                // It specifically ensures user-scalable=yes to fix zoom issues.
+                String zoomFixScript = "var meta = document.querySelector('meta[name=\"viewport\"]');" +
+                        "if (!meta) {" +
+                        "    meta = document.createElement('meta');" +
+                        "    meta.name = 'viewport';" +
+                        "    document.head.appendChild(meta);" +
+                        "}" +
+                        "meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes';";
+
+                view.evaluateJavascript(zoomFixScript, null);
+            }
         });
 
         // Set a custom WebChromeClient to handle permission requests and file selection
@@ -128,13 +212,13 @@ public class MainActivity extends BridgeActivity {
             @Override
             public void onPermissionRequest(final PermissionRequest request) {
                 // Automatically grant all permissions (Camera, Microphone, etc.)
-                // In a production app, you might want to check specific permissions
                 request.grant(request.getResources());
             }
 
             // For Android 5.0+
             @Override
-            public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, WebChromeClient.FileChooserParams fileChooserParams) {
+            public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback,
+                    WebChromeClient.FileChooserParams fileChooserParams) {
                 if (MainActivity.this.filePathCallback != null) {
                     MainActivity.this.filePathCallback.onReceiveValue(null);
                 }
@@ -230,7 +314,8 @@ public class MainActivity extends BridgeActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == FILE_CHOOSER_RESULT_CODE) {
-            if (filePathCallback == null) return;
+            if (filePathCallback == null)
+                return;
             filePathCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data));
             filePathCallback = null;
         }
