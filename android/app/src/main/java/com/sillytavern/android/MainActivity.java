@@ -121,10 +121,9 @@ public class MainActivity extends BridgeActivity {
                     }, 5000);
                 });
 
-                // Only enable swipe refresh when scrolled to top
-                webView.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
-                    swipeRefreshLayout.setEnabled(scrollY == 0);
-                });
+                // NOTE: We do NOT use webView.setOnScrollChangeListener here anymore.
+                // We rely on the injected JS + ScrollBridge to toggle enabled state.
+                swipeRefreshLayout.setEnabled(true);
             }
         }
     }
@@ -152,9 +151,10 @@ public class MainActivity extends BridgeActivity {
         // Get the WebView instance from Capacitor's Bridge
         WebView webView = this.getBridge().getWebView();
 
-        // Add Javascript Interface for Auth & Background
+        // Add Javascript Interface for Auth, Background & Scroll
         webView.addJavascriptInterface(new AuthBridge(this), "AuthBridge");
         webView.addJavascriptInterface(new BackgroundBridge(this), "BackgroundBridge");
+        webView.addJavascriptInterface(new ScrollBridge(), "ScrollBridge");
 
         // Sync background service state
         syncBackgroundService();
@@ -191,19 +191,47 @@ public class MainActivity extends BridgeActivity {
                     swipeRefreshLayout.setRefreshing(false);
                 }
 
-                // Force create viewport meta tag if not present or update it to allow
-                // user-scalable
-                // This script checks if viewport exists, updates it, or creates it.
-                // It specifically ensures user-scalable=yes to fix zoom issues.
-                String zoomFixScript = "var meta = document.querySelector('meta[name=\"viewport\"]');" +
-                        "if (!meta) {" +
-                        "    meta = document.createElement('meta');" +
-                        "    meta.name = 'viewport';" +
-                        "    document.head.appendChild(meta);" +
-                        "}" +
-                        "meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes';";
+                // Inject JS for Zoom Fix and Scroll Handling
+                String jsInjection =
+                        // 1. Zoom Fix: Enforce viewport meta tag
+                        "var enforceViewport = function() {" +
+                                "   var meta = document.querySelector('meta[name=\"viewport\"]');" +
+                                "   if (!meta) {" +
+                                "       meta = document.createElement('meta');" +
+                                "       meta.name = 'viewport';" +
+                                "       document.head.appendChild(meta);" +
+                                "   }" +
+                                "   if (meta.content !== 'width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes') {"
+                                +
+                                "       meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes';"
+                                +
+                                "   }" +
+                                "};" +
+                                "enforceViewport();" +
+                                "new MutationObserver(enforceViewport).observe(document.head, { childList: true, subtree: true, attributes: true });"
+                                +
 
-                view.evaluateJavascript(zoomFixScript, null);
+                // 2. Scroll Fix: Detect sticky touch start and update native SwipeRefreshLayout
+                                "document.addEventListener('touchstart', function(e) {" +
+                                "   var el = e.target;" +
+                                "   var isScrolledToTop = true;" +
+                                "   while (el) {" +
+                                "       if (el.scrollHeight > el.clientHeight && el.scrollTop > 0) {" +
+                                "           isScrolledToTop = false;" +
+                                "           break;" +
+                                "       }" +
+                // Also check for window/body scroll
+                                "       if (el === document.body || el === document.documentElement) {" +
+                                "           if (window.scrollY > 0) isScrolledToTop = false;" +
+                                "       }" +
+                                "       el = el.parentElement;" +
+                                "   }" +
+                                "   if (window.ScrollBridge) {" +
+                                "       window.ScrollBridge.enableSwipeRefresh(isScrolledToTop);" +
+                                "   }" +
+                                "}, { passive: true });";
+
+                view.evaluateJavascript(jsInjection, null);
             }
         });
 
@@ -307,6 +335,17 @@ public class MainActivity extends BridgeActivity {
             editor.remove(KEY_AUTH_USER);
             editor.remove(KEY_AUTH_PASS);
             editor.apply();
+        }
+    }
+
+    // NEW: Bridge to handle scroll state from JS
+    public class ScrollBridge {
+        @JavascriptInterface
+        public void enableSwipeRefresh(boolean enabled) {
+            if (swipeRefreshLayout != null) {
+                // Must run on UI thread as this touches View properties
+                runOnUiThread(() -> swipeRefreshLayout.setEnabled(enabled));
+            }
         }
     }
 
