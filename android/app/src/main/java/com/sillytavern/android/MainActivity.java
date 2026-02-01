@@ -193,16 +193,20 @@ public class MainActivity extends BridgeActivity {
 
                 // Inject JS for Zoom Fix and Scroll Handling
                 String jsInjection =
-                        // 1. Zoom Fix: Enforce viewport meta tag
-                        "var enforceViewport = function() {" +
+                        // 0. CSS Force Zoom: Ensure touch-action allows scaling
+                        "var style = document.createElement('style');" +
+                                "style.innerHTML = 'html, body { touch-action: pan-x pan-y pinch-zoom !important; }';" +
+                                "document.head.appendChild(style);" +
+
+                // 1. Zoom Fix: Enforce viewport meta tag
+                                "var enforceViewport = function() {" +
                                 "   var meta = document.querySelector('meta[name=\"viewport\"]');" +
                                 "   if (!meta) {" +
                                 "       meta = document.createElement('meta');" +
                                 "       meta.name = 'viewport';" +
                                 "       document.head.appendChild(meta);" +
                                 "   }" +
-                                "   if (meta.content !== 'width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes') {"
-                                +
+                                "   if (!meta.content.includes('user-scalable=yes')) {" +
                                 "       meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes';"
                                 +
                                 "   }" +
