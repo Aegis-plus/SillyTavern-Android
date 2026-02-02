@@ -27,9 +27,14 @@ import com.getcapacitor.BridgeWebViewClient;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import android.view.ViewGroup;
 import androidx.activity.OnBackPressedCallback;
+import android.widget.LinearLayout;
+import android.widget.SeekBar;
+import android.widget.ImageButton;
+import android.view.View;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 
 public class MainActivity extends BridgeActivity {
     private static final int FILE_CHOOSER_RESULT_CODE = 1;
@@ -38,7 +43,8 @@ public class MainActivity extends BridgeActivity {
     private static final String KEY_AUTH_USER = "auth_user";
     private static final String KEY_AUTH_PASS = "auth_pass";
     private static final String KEY_BACKGROUND_MODE = "background_mode";
-    private SwipeRefreshLayout swipeRefreshLayout;
+    private LinearLayout hudLayout;
+    private SeekBar zoomSeekBar;
 
     private SharedPreferences getSafeSharedPreferences(Context context) {
         try {
@@ -83,49 +89,70 @@ public class MainActivity extends BridgeActivity {
             windowInsetsController.setAppearanceLightNavigationBars(false);
         }
 
-        setupSwipeRefresh();
+        setupHUD();
         setupBackNavigation();
     }
 
-    private void setupSwipeRefresh() {
-        // Wrap the WebView in a SwipeRefreshLayout programmatically
+    private void setupHUD() {
+        hudLayout = findViewById(R.id.hud_layout);
         WebView webView = getBridge().getWebView();
-        if (webView != null) {
-            ViewGroup parent = (ViewGroup) webView.getParent();
-            if (parent != null) {
-                parent.removeView(webView);
 
-                swipeRefreshLayout = new SwipeRefreshLayout(this);
-                swipeRefreshLayout.setLayoutParams(new ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT));
+        ImageButton btnRefresh = findViewById(R.id.btn_refresh);
+        btnRefresh.setOnClickListener(v -> {
+            if (webView != null)
+                webView.reload();
+        });
 
-                // Add WebView to SwipeRefreshLayout
-                swipeRefreshLayout.addView(webView, new ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT));
-
-                // Re-add SwipeRefreshLayout to the original parent
-                parent.addView(swipeRefreshLayout);
-
-                // Configure SwipeRefresh behavior
-                swipeRefreshLayout.setOnRefreshListener(() -> {
-                    webView.reload();
-                    // Stop spinner after a short delay via WebViewClient onPageFinished or manual
-                    // timeout
-                    // Backup timeout in case onPageFinished doesn't fire
-                    new android.os.Handler().postDelayed(() -> {
-                        if (swipeRefreshLayout.isRefreshing()) {
-                            swipeRefreshLayout.setRefreshing(false);
-                        }
-                    }, 5000);
-                });
-
-                // NOTE: We do NOT use webView.setOnScrollChangeListener here anymore.
-                // We rely on the injected JS + ScrollBridge to toggle enabled state.
-                swipeRefreshLayout.setEnabled(true);
+        zoomSeekBar = findViewById(R.id.seek_zoom);
+        zoomSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (webView != null) {
+                    // Map 0-200 to 50%-250%
+                    webView.getSettings().setTextZoom(progress + 50);
+                }
             }
-        }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+            }
+        });
+
+        // Initialize zoom to 100% (progress 50)
+        zoomSeekBar.setProgress(50);
+        if (webView != null)
+            webView.getSettings().setTextZoom(100);
+
+        ImageButton btnMenu = findViewById(R.id.btn_menu);
+        btnMenu.setOnClickListener(v -> showMainMenu());
+    }
+
+    private void showMainMenu() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Menu");
+        String[] options = { "Resume", "Toggle HUD", "Exit" };
+        builder.setItems(options, (dialog, which) -> {
+            switch (which) {
+                case 0: // Resume
+                    dialog.dismiss();
+                    break;
+                case 1: // Toggle HUD
+                    if (hudLayout.getVisibility() == View.VISIBLE) {
+                        hudLayout.setVisibility(View.GONE);
+                    } else {
+                        hudLayout.setVisibility(View.VISIBLE);
+                    }
+                    break;
+                case 2: // Exit
+                    finish();
+                    break;
+            }
+        });
+        builder.show();
     }
 
     private void setupBackNavigation() {
@@ -136,12 +163,12 @@ public class MainActivity extends BridgeActivity {
                 if (webView != null && webView.canGoBack()) {
                     webView.goBack();
                 } else {
-                    // Standard system back behavior (minimize app)
-                    setEnabled(false);
-                    getOnBackPressedDispatcher().onBackPressed();
+                    // Show Main Menu instead of exiting immediately
+                    showMainMenu();
                 }
             }
         });
+
     }
 
     @Override
@@ -154,7 +181,6 @@ public class MainActivity extends BridgeActivity {
         // Add Javascript Interface for Auth, Background & Scroll
         webView.addJavascriptInterface(new AuthBridge(this), "AuthBridge");
         webView.addJavascriptInterface(new BackgroundBridge(this), "BackgroundBridge");
-        webView.addJavascriptInterface(new ScrollBridge(), "ScrollBridge");
 
         // Sync background service state
         syncBackgroundService();
@@ -187,9 +213,6 @@ public class MainActivity extends BridgeActivity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                if (swipeRefreshLayout != null) {
-                    swipeRefreshLayout.setRefreshing(false);
-                }
 
                 // Inject JS for Zoom Fix and Scroll Handling
                 String jsInjection =
@@ -212,28 +235,7 @@ public class MainActivity extends BridgeActivity {
                                 "   }" +
                                 "};" +
                                 "enforceViewport();" +
-                                "new MutationObserver(enforceViewport).observe(document.head, { childList: true, subtree: true, attributes: true });"
-                                +
-
-                // 2. Scroll Fix: Detect sticky touch start and update native SwipeRefreshLayout
-                                "document.addEventListener('touchstart', function(e) {" +
-                                "   var el = e.target;" +
-                                "   var isScrolledToTop = true;" +
-                                "   while (el) {" +
-                                "       if (el.scrollHeight > el.clientHeight && el.scrollTop > 0) {" +
-                                "           isScrolledToTop = false;" +
-                                "           break;" +
-                                "       }" +
-                // Also check for window/body scroll
-                                "       if (el === document.body || el === document.documentElement) {" +
-                                "           if (window.scrollY > 0) isScrolledToTop = false;" +
-                                "       }" +
-                                "       el = el.parentElement;" +
-                                "   }" +
-                                "   if (window.ScrollBridge) {" +
-                                "       window.ScrollBridge.enableSwipeRefresh(isScrolledToTop);" +
-                                "   }" +
-                                "}, { passive: true });";
+                                "new MutationObserver(enforceViewport).observe(document.head, { childList: true, subtree: true, attributes: true });";
 
                 view.evaluateJavascript(jsInjection, null);
             }
@@ -339,17 +341,6 @@ public class MainActivity extends BridgeActivity {
             editor.remove(KEY_AUTH_USER);
             editor.remove(KEY_AUTH_PASS);
             editor.apply();
-        }
-    }
-
-    // NEW: Bridge to handle scroll state from JS
-    public class ScrollBridge {
-        @JavascriptInterface
-        public void enableSwipeRefresh(boolean enabled) {
-            if (swipeRefreshLayout != null) {
-                // Must run on UI thread as this touches View properties
-                runOnUiThread(() -> swipeRefreshLayout.setEnabled(enabled));
-            }
         }
     }
 
