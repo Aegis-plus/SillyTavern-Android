@@ -47,7 +47,7 @@ This repository contains a lightweight Android launcher for SillyTavern using Ca
 - **Refresh Button:** Minimalist button ("R") to reload the current page.
 - **Zoom Slider:** `SeekBar` control allowing user to scale the UI from 50% to 200%.
     - **Persistence:** Zoom level is saved in `EncryptedSharedPreferences` (`sillytavern_zoom_level`).
-    - **Logic:** Injects `document.body.style.zoom` to scale web content dynamically.
+    - **Logic:** Injects `meta name="viewport"` tag to scale web content dynamically (`initial-scale` = slider value).
 - **Swipe Refresh:** DISABLED/REMOVED. Interaction is now button-based only.
 
 ### Back Navigation Flow
@@ -60,7 +60,7 @@ This repository contains a lightweight Android launcher for SillyTavern using Ca
 
 ### Zoom Support
 - **Native:** Configured with `setSupportZoom(true)` and `setBuiltInZoomControls(true)`.
-- **Injection:** Injects Javascript to enforce `user-scalable=yes` in the viewport meta tag and CSS `touch-action` rules.
+- **Injection:** Injects Javascript to dynamically set the `viewport` meta tag based on the slider position.
 - **Top Bar Control:** The slider provides the primary user-facing zoom control.
 
 ## Rules & Constraints

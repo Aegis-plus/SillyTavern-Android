@@ -42,9 +42,11 @@ public class MainActivity extends BridgeActivity {
     private static final String KEY_AUTH_USER = "auth_user";
     private static final String KEY_AUTH_PASS = "auth_pass";
     private static final String KEY_BACKGROUND_MODE = "background_mode";
+    private static final String KEY_TOP_BAR_ENABLED = "top_bar_enabled";
 
     private static final String KEY_ZOOM_LEVEL = "sillytavern_zoom_level";
     private LinearLayout rootLayout;
+    private LinearLayout topBar;
     private SeekBar zoomSlider;
     private int currentZoomProgress = 100; // Default 100%
 
@@ -111,21 +113,23 @@ public class MainActivity extends BridgeActivity {
                 rootLayout.setOrientation(LinearLayout.VERTICAL);
 
                 // Top Bar Layout (Horizontal)
-                LinearLayout topBar = new LinearLayout(this);
+                topBar = new LinearLayout(this);
                 topBar.setLayoutParams(new LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
-                        (int) (48 * getResources().getDisplayMetrics().density))); // 48dp height
+                        (int) (32 * getResources().getDisplayMetrics().density))); // 32dp height (Slimmer)
                 topBar.setOrientation(LinearLayout.HORIZONTAL);
                 topBar.setGravity(Gravity.CENTER_VERTICAL);
-                topBar.setBackgroundColor(0xFFEEEEEE); // Light gray background
-                topBar.setPadding(16, 0, 16, 0);
+                topBar.setBackgroundColor(0xFF191B28); // Dark Navy background
+                topBar.setPadding(8, 0, 8, 0);
 
                 // Refresh Button
                 Button refreshBtn = new Button(this);
                 refreshBtn.setText("R"); // Minimalist text icon
+                refreshBtn.setTextColor(0xFFFFFFFF); // White text
                 refreshBtn.setLayoutParams(new LinearLayout.LayoutParams(
-                        (int) (48 * getResources().getDisplayMetrics().density),
+                        (int) (48 * getResources().getDisplayMetrics().density), // Keep touch target width
                         ViewGroup.LayoutParams.MATCH_PARENT));
+                refreshBtn.setBackgroundColor(0x00000000); // Transparent background
                 refreshBtn.setOnClickListener(v -> webView.reload());
                 topBar.addView(refreshBtn);
 
@@ -165,6 +169,11 @@ public class MainActivity extends BridgeActivity {
                 });
                 topBar.addView(zoomSlider);
 
+                // Set initial visibility
+                SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                boolean topBarEnabled = prefs.getBoolean(KEY_TOP_BAR_ENABLED, true);
+                topBar.setVisibility(topBarEnabled ? android.view.View.VISIBLE : android.view.View.GONE);
+
                 // Add Top Bar to Root
                 rootLayout.addView(topBar);
 
@@ -181,11 +190,18 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
-    // Helper to apply zoom via JS
+    // Helper to apply zoom via Viewport Meta Tag
     private void applyZoom(WebView webView, int progress) {
         // Map 0-150 to 0.5-2.0
         float userScale = 0.5f + (progress / 100.0f);
-        String js = "document.body.style.zoom = '" + userScale + "';";
+        String js = "var meta = document.querySelector('meta[name=\"viewport\"]');" +
+                "if (!meta) {" +
+                "    meta = document.createElement('meta');" +
+                "    meta.name = 'viewport';" +
+                "    document.head.appendChild(meta);" +
+                "}" +
+                "meta.content = 'width=device-width, initial-scale=" + userScale + ", maximum-scale=" + userScale
+                + ", minimum-scale=" + userScale + ", user-scalable=yes';";
         webView.evaluateJavascript(js, null);
     }
 
@@ -242,6 +258,7 @@ public class MainActivity extends BridgeActivity {
         // Add Javascript Interface for Auth, Background
         webView.addJavascriptInterface(new AuthBridge(this), "AuthBridge");
         webView.addJavascriptInterface(new BackgroundBridge(this), "BackgroundBridge");
+        webView.addJavascriptInterface(new UIBridge(this), "UIBridge");
 
         // Sync background service state
         syncBackgroundService();
@@ -282,27 +299,12 @@ public class MainActivity extends BridgeActivity {
                 applyZoom(view, currentZoomProgress);
 
                 // Inject JS for Zoom Fix and Scroll Handling
+                // Inject CSS locally to force touch-action but rely on applyZoom for Viewport
                 String jsInjection =
-                        // 0. CSS Force Zoom: Ensure touch-action allows scaling
+                        // CSS Force Zoom: Ensure touch-action allows scaling
                         "var style = document.createElement('style');" +
                                 "style.innerHTML = 'html, body { touch-action: pan-x pan-y pinch-zoom !important; }';" +
-                                "document.head.appendChild(style);" +
-
-                // 1. Zoom Fix: Enforce viewport meta tag
-                                "var enforceViewport = function() {" +
-                                "   var meta = document.querySelector('meta[name=\"viewport\"]');" +
-                                "   if (!meta) {" +
-                                "       meta = document.createElement('meta');" +
-                                "       meta.name = 'viewport';" +
-                                "       document.head.appendChild(meta);" +
-                                "   }" +
-                                "   if (!meta.content.includes('user-scalable=yes')) {" +
-                                "       meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes';"
-                                +
-                                "   }" +
-                                "};" +
-                                "enforceViewport();" +
-                                "new MutationObserver(enforceViewport).observe(document.head, { childList: true, subtree: true, attributes: true });";
+                                "document.head.appendChild(style);";
 
                 view.evaluateJavascript(jsInjection, null);
             }
@@ -408,6 +410,27 @@ public class MainActivity extends BridgeActivity {
             editor.remove(KEY_AUTH_USER);
             editor.remove(KEY_AUTH_PASS);
             editor.apply();
+        }
+    }
+
+    public class UIBridge {
+        Context mContext;
+
+        UIBridge(Context c) {
+            mContext = c;
+        }
+
+        @JavascriptInterface
+        public void setTopBarEnabled(boolean enabled) {
+            SharedPreferences prefs = mContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            prefs.edit().putBoolean(KEY_TOP_BAR_ENABLED, enabled).apply();
+
+            // Update UI on Main Thread
+            runOnUiThread(() -> {
+                if (topBar != null) {
+                    topBar.setVisibility(enabled ? android.view.View.VISIBLE : android.view.View.GONE);
+                }
+            });
         }
     }
 

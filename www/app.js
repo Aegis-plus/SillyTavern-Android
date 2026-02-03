@@ -24,7 +24,7 @@ const cancelBtn = document.getElementById('cancel-btn');
 
 function init() {
     const storedUrl = localStorage.getItem(STORAGE_KEY);
-    
+
     // Sync auth settings to native side on startup
     syncAuthToNative();
     syncBackgroundToNative();
@@ -36,9 +36,15 @@ function init() {
         updateDisplay(defaultUrl);
         showSettings();
     } else {
-        // URL exists - auto connect
+        // URL exists - check if we should auto-connect
         updateDisplay(storedUrl);
-        connect();
+
+        // Check if we already redirected this session to prevent loops when pressing Back
+        const hasRedirected = sessionStorage.getItem('sillytavern_redirected');
+        if (!hasRedirected) {
+            sessionStorage.setItem('sillytavern_redirected', 'true');
+            connect();
+        }
     }
 }
 
@@ -58,15 +64,16 @@ function showSettings() {
     mainScreen.classList.add('hidden');
     settingsScreen.classList.remove('hidden');
     urlInput.value = localStorage.getItem(STORAGE_KEY) || '';
-    
+
     const authEnabled = localStorage.getItem(AUTH_ENABLED_KEY) === 'true';
     authToggle.checked = authEnabled;
     authUser.value = localStorage.getItem(AUTH_USER_KEY) || '';
     authPass.value = localStorage.getItem(AUTH_PASS_KEY) || '';
-    
+
     bgToggle.checked = localStorage.getItem(BG_MODE_KEY) === 'true';
+    document.getElementById('top-bar-toggle').checked = localStorage.getItem('sillytavern_top_bar_enabled') !== 'false'; // Default true
     checkBatteryOptimization();
-    
+
     toggleAuthFields();
 }
 
@@ -111,14 +118,14 @@ function saveSettings() {
         if (!/^https?:\/\//i.test(url)) {
             url = 'http://' + url;
         }
-        
+
         const validUrl = new URL(url);
         // Normalize the URL string
         url = validUrl.href;
-        
+
         // Remove trailing slash if present for cleaner display/storage (optional but nice)
         if (url.endsWith('/')) {
-             url = url.slice(0, -1);
+            url = url.slice(0, -1);
         }
     } catch (e) {
         alert('Invalid URL format. Please check the address.');
@@ -126,7 +133,7 @@ function saveSettings() {
     }
 
     localStorage.setItem(STORAGE_KEY, url);
-    
+
     // Save Auth Settings
     localStorage.setItem(AUTH_ENABLED_KEY, authToggle.checked);
     if (authToggle.checked) {
@@ -138,11 +145,20 @@ function saveSettings() {
     }
 
     localStorage.setItem(BG_MODE_KEY, bgToggle.checked);
+    localStorage.setItem('sillytavern_top_bar_enabled', document.getElementById('top-bar-toggle').checked);
 
     syncAuthToNative();
     syncBackgroundToNative();
+    syncUIToNative(); // New sync call
     updateDisplay(url);
     hideSettings();
+}
+
+function syncUIToNative() {
+    const enabled = localStorage.getItem('sillytavern_top_bar_enabled') !== 'false'; // Default true
+    if (window.UIBridge && window.UIBridge.setTopBarEnabled) {
+        window.UIBridge.setTopBarEnabled(enabled);
+    }
 }
 
 function syncBackgroundToNative() {
