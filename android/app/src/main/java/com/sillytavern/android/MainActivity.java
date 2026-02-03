@@ -27,14 +27,13 @@ import com.getcapacitor.BridgeWebViewClient;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+// Removed SwipeRefreshLayout import
+import android.widget.LinearLayout;
+import android.widget.Button;
+import android.widget.SeekBar;
+import android.view.Gravity;
 import android.view.ViewGroup;
 import androidx.activity.OnBackPressedCallback;
-import android.widget.LinearLayout;
-import android.widget.SeekBar;
-import android.widget.ImageButton;
-import android.view.View;
-import android.app.AlertDialog;
-import android.content.DialogInterface;
 
 public class MainActivity extends BridgeActivity {
     private static final int FILE_CHOOSER_RESULT_CODE = 1;
@@ -43,8 +42,12 @@ public class MainActivity extends BridgeActivity {
     private static final String KEY_AUTH_USER = "auth_user";
     private static final String KEY_AUTH_PASS = "auth_pass";
     private static final String KEY_BACKGROUND_MODE = "background_mode";
-    private LinearLayout hudLayout;
-    private SeekBar zoomSeekBar;
+    private SwipeRefreshLayout swipeRefreshLayout;
+
+    private static final String KEY_ZOOM_LEVEL = "sillytavern_zoom_level";
+    private LinearLayout rootLayout;
+    private SeekBar zoomSlider;
+    private int currentZoomProgress = 100; // Default 100%
 
     private SharedPreferences getSafeSharedPreferences(Context context) {
         try {
@@ -67,8 +70,6 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
         // Enable edge-to-edge display (content behind system bars)
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
@@ -91,81 +92,102 @@ public class MainActivity extends BridgeActivity {
             windowInsetsController.setAppearanceLightNavigationBars(false);
         }
 
-        try {
-            setupHUD();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        setupUserInterface();
         setupBackNavigation();
     }
 
-    private void setupHUD() {
-        hudLayout = findViewById(R.id.hud_layout);
+    private void setupUserInterface() {
+        // Wrap the WebView in a LinearLayout with a Top Bar
         WebView webView = getBridge().getWebView();
+        if (webView != null) {
+            ViewGroup parent = (ViewGroup) webView.getParent();
+            if (parent != null) {
+                parent.removeView(webView);
 
-        ImageButton btnRefresh = findViewById(R.id.btn_refresh);
-        if (btnRefresh != null) {
-            btnRefresh.setOnClickListener(v -> {
-                if (webView != null)
-                    webView.reload();
-            });
-        }
+                // Root Layout (Vertical)
+                rootLayout = new LinearLayout(this);
+                rootLayout.setLayoutParams(new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT));
+                rootLayout.setOrientation(LinearLayout.VERTICAL);
 
-        zoomSeekBar = findViewById(R.id.seek_zoom);
-        if (zoomSeekBar != null) {
-            zoomSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-                @Override
-                public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                    if (webView != null) {
-                        // Map 0-200 to 50%-250%
-                        webView.getSettings().setTextZoom(progress + 50);
+                // Top Bar Layout (Horizontal)
+                LinearLayout topBar = new LinearLayout(this);
+                topBar.setLayoutParams(new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        (int) (48 * getResources().getDisplayMetrics().density))); // 48dp height
+                topBar.setOrientation(LinearLayout.HORIZONTAL);
+                topBar.setGravity(Gravity.CENTER_VERTICAL);
+                topBar.setBackgroundColor(0xFFEEEEEE); // Light gray background
+                topBar.setPadding(16, 0, 16, 0);
+
+                // Refresh Button
+                Button refreshBtn = new Button(this);
+                refreshBtn.setText("R"); // Minimalist text icon
+                refreshBtn.setLayoutParams(new LinearLayout.LayoutParams(
+                        (int) (48 * getResources().getDisplayMetrics().density),
+                        ViewGroup.LayoutParams.MATCH_PARENT));
+                refreshBtn.setOnClickListener(v -> webView.reload());
+                topBar.addView(refreshBtn);
+
+                // Zoom Slider
+                zoomSlider = new SeekBar(this);
+                LinearLayout.LayoutParams sliderParams = new LinearLayout.LayoutParams(
+                        0,
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        1.0f); // Weight 1 to fill space
+                sliderParams.setMargins(16, 0, 16, 0);
+                zoomSlider.setLayoutParams(sliderParams);
+                zoomSlider.setMax(150); // Range 0-150 maps to 50%-200%
+
+                // Restore saved zoom
+                SharedPreferences prefs = getSafeSharedPreferences(this);
+                currentZoomProgress = prefs.getInt(KEY_ZOOM_LEVEL, 50); // Default middle (100% -> index 50)
+                zoomSlider.setProgress(currentZoomProgress);
+
+                zoomSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                    @Override
+                    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                        currentZoomProgress = progress;
+                        applyZoom(webView, progress);
                     }
-                }
 
-                @Override
-                public void onStartTrackingTouch(SeekBar seekBar) {
-                }
+                    @Override
+                    public void onStartTrackingTouch(SeekBar seekBar) {
+                    }
 
-                @Override
-                public void onStopTrackingTouch(SeekBar seekBar) {
-                }
-            });
+                    @Override
+                    public void onStopTrackingTouch(SeekBar seekBar) {
+                        // Persist zoom on stop
+                        SharedPreferences.Editor editor = getSafeSharedPreferences(MainActivity.this).edit();
+                        editor.putInt(KEY_ZOOM_LEVEL, currentZoomProgress);
+                        editor.apply();
+                    }
+                });
+                topBar.addView(zoomSlider);
 
-            // Initialize zoom to 100% (progress 50)
-            zoomSeekBar.setProgress(50);
-        }
+                // Add Top Bar to Root
+                rootLayout.addView(topBar);
 
-        if (webView != null)
-            webView.getSettings().setTextZoom(100);
+                // Add WebView to Root (Fill remaining space)
+                webView.setLayoutParams(new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        0,
+                        1.0f));
+                rootLayout.addView(webView);
 
-        ImageButton btnMenu = findViewById(R.id.btn_menu);
-        if (btnMenu != null) {
-            btnMenu.setOnClickListener(v -> showMainMenu());
+                // Add Root to Parent
+                parent.addView(rootLayout);
+            }
         }
     }
 
-    private void showMainMenu() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Menu");
-        String[] options = { "Resume", "Toggle HUD", "Exit" };
-        builder.setItems(options, (dialog, which) -> {
-            switch (which) {
-                case 0: // Resume
-                    dialog.dismiss();
-                    break;
-                case 1: // Toggle HUD
-                    if (hudLayout.getVisibility() == View.VISIBLE) {
-                        hudLayout.setVisibility(View.GONE);
-                    } else {
-                        hudLayout.setVisibility(View.VISIBLE);
-                    }
-                    break;
-                case 2: // Exit
-                    finish();
-                    break;
-            }
-        });
-        builder.show();
+    // Helper to apply zoom via JS
+    private void applyZoom(WebView webView, int progress) {
+        // Map 0-150 to 0.5-2.0
+        float userScale = 0.5f + (progress / 100.0f);
+        String js = "document.body.style.zoom = '" + userScale + "';";
+        webView.evaluateJavascript(js, null);
     }
 
     private void setupBackNavigation() {
@@ -176,12 +198,39 @@ public class MainActivity extends BridgeActivity {
                 if (webView != null && webView.canGoBack()) {
                     webView.goBack();
                 } else {
-                    // Show Main Menu instead of exiting immediately
-                    showMainMenu();
+                    // Check if we are at root/main menu
+                    boolean atRoot = false;
+                    String currentUrl = webView != null ? webView.getUrl() : null;
+                    if (currentUrl != null) {
+                        Uri uri = Uri.parse(currentUrl);
+                        String path = uri.getPath();
+                        String fragment = uri.getFragment();
+                        // Consider it root if path is empty/root/index.html and no navigation fragment
+                        boolean isRootPath = path == null || path.isEmpty() || path.equals("/")
+                                || path.equals("/index.html");
+                        boolean isRootFragment = fragment == null || fragment.isEmpty() || fragment.equals("/");
+                        atRoot = isRootPath && isRootFragment;
+                    }
+
+                    if (!atRoot && webView != null && currentUrl != null) {
+                        // Navigate to root instead of exiting
+                        try {
+                            Uri uri = Uri.parse(currentUrl);
+                            String rootUrl = uri.getScheme() + "://" + uri.getAuthority() + "/";
+                            webView.loadUrl(rootUrl);
+                        } catch (Exception e) {
+                            // Fallback if parsing fails
+                            setEnabled(false);
+                            getOnBackPressedDispatcher().onBackPressed();
+                        }
+                    } else {
+                        // Standard system back behavior (minimize app)
+                        setEnabled(false);
+                        getOnBackPressedDispatcher().onBackPressed();
+                    }
                 }
             }
         });
-
     }
 
     @Override
@@ -191,7 +240,7 @@ public class MainActivity extends BridgeActivity {
         // Get the WebView instance from Capacitor's Bridge
         WebView webView = this.getBridge().getWebView();
 
-        // Add Javascript Interface for Auth, Background & Scroll
+        // Add Javascript Interface for Auth, Background
         webView.addJavascriptInterface(new AuthBridge(this), "AuthBridge");
         webView.addJavascriptInterface(new BackgroundBridge(this), "BackgroundBridge");
 
@@ -207,6 +256,9 @@ public class MainActivity extends BridgeActivity {
         webSettings.setLoadWithOverviewMode(true);
         webSettings.setDomStorageEnabled(true);
         webSettings.setJavaScriptEnabled(true);
+
+        // Re-apply zoom on resume/page reload
+        applyZoom(webView, currentZoomProgress);
 
         // Set custom WebViewClient to handle Basic Auth and Zoom Fix
         webView.setWebViewClient(new BridgeWebViewClient(this.getBridge()) {
@@ -226,6 +278,9 @@ public class MainActivity extends BridgeActivity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
+
+                // Re-apply zoom setting when page loads
+                applyZoom(view, currentZoomProgress);
 
                 // Inject JS for Zoom Fix and Scroll Handling
                 String jsInjection =
@@ -281,80 +336,6 @@ public class MainActivity extends BridgeActivity {
                 return true;
             }
         });
-    }
-
-    private void syncBackgroundService() {
-        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        boolean enabled = prefs.getBoolean(KEY_BACKGROUND_MODE, false);
-        Intent serviceIntent = new Intent(this, KeepAliveService.class);
-        if (enabled) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(serviceIntent);
-            } else {
-                startService(serviceIntent);
-            }
-        } else {
-            stopService(serviceIntent);
-        }
-    }
-
-    public class BackgroundBridge {
-        Context mContext;
-
-        BackgroundBridge(Context c) {
-            mContext = c;
-        }
-
-        @JavascriptInterface
-        public void setBackgroundMode(boolean enabled) {
-            SharedPreferences prefs = mContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-            prefs.edit().putBoolean(KEY_BACKGROUND_MODE, enabled).apply();
-            syncBackgroundService();
-        }
-
-        @JavascriptInterface
-        public boolean isIgnoringBatteryOptimizations() {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                PowerManager pm = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
-                return pm.isIgnoringBatteryOptimizations(mContext.getPackageName());
-            }
-            return true;
-        }
-
-        @JavascriptInterface
-        public void requestIgnoreBatteryOptimizations() {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-                intent.setData(Uri.parse("package:" + mContext.getPackageName()));
-                mContext.startActivity(intent);
-            }
-        }
-    }
-
-    public class AuthBridge {
-        Context mContext;
-
-        AuthBridge(Context c) {
-            mContext = c;
-        }
-
-        @JavascriptInterface
-        public void setCredentials(String user, String pass) {
-            SharedPreferences prefs = getSafeSharedPreferences(mContext);
-            SharedPreferences.Editor editor = prefs.edit();
-            editor.putString(KEY_AUTH_USER, user);
-            editor.putString(KEY_AUTH_PASS, pass);
-            editor.apply();
-        }
-
-        @JavascriptInterface
-        public void clearCredentials() {
-            SharedPreferences prefs = getSafeSharedPreferences(mContext);
-            SharedPreferences.Editor editor = prefs.edit();
-            editor.remove(KEY_AUTH_USER);
-            editor.remove(KEY_AUTH_PASS);
-            editor.apply();
-        }
     }
 
     @Override
