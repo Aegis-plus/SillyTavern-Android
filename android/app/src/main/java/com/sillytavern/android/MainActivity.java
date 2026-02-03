@@ -170,8 +170,8 @@ public class MainActivity extends BridgeActivity {
                 topBar.addView(zoomSlider);
 
                 // Set initial visibility
-                SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-                boolean topBarEnabled = prefs.getBoolean(KEY_TOP_BAR_ENABLED, true);
+                SharedPreferences uiPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                boolean topBarEnabled = uiPrefs.getBoolean(KEY_TOP_BAR_ENABLED, true);
                 topBar.setVisibility(topBarEnabled ? android.view.View.VISIBLE : android.view.View.GONE);
 
                 // Add Top Bar to Root
