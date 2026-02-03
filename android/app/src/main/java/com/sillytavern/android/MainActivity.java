@@ -67,6 +67,8 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
         // Enable edge-to-edge display (content behind system bars)
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
@@ -89,7 +91,11 @@ public class MainActivity extends BridgeActivity {
             windowInsetsController.setAppearanceLightNavigationBars(false);
         }
 
-        setupHUD();
+        try {
+            setupHUD();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         setupBackNavigation();
     }
 
@@ -98,37 +104,44 @@ public class MainActivity extends BridgeActivity {
         WebView webView = getBridge().getWebView();
 
         ImageButton btnRefresh = findViewById(R.id.btn_refresh);
-        btnRefresh.setOnClickListener(v -> {
-            if (webView != null)
-                webView.reload();
-        });
+        if (btnRefresh != null) {
+            btnRefresh.setOnClickListener(v -> {
+                if (webView != null)
+                    webView.reload();
+            });
+        }
 
         zoomSeekBar = findViewById(R.id.seek_zoom);
-        zoomSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (webView != null) {
-                    // Map 0-200 to 50%-250%
-                    webView.getSettings().setTextZoom(progress + 50);
+        if (zoomSeekBar != null) {
+            zoomSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                @Override
+                public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                    if (webView != null) {
+                        // Map 0-200 to 50%-250%
+                        webView.getSettings().setTextZoom(progress + 50);
+                    }
                 }
-            }
 
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-            }
+                @Override
+                public void onStartTrackingTouch(SeekBar seekBar) {
+                }
 
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-            }
-        });
+                @Override
+                public void onStopTrackingTouch(SeekBar seekBar) {
+                }
+            });
 
-        // Initialize zoom to 100% (progress 50)
-        zoomSeekBar.setProgress(50);
+            // Initialize zoom to 100% (progress 50)
+            zoomSeekBar.setProgress(50);
+        }
+
         if (webView != null)
             webView.getSettings().setTextZoom(100);
 
         ImageButton btnMenu = findViewById(R.id.btn_menu);
-        btnMenu.setOnClickListener(v -> showMainMenu());
+        if (btnMenu != null) {
+            btnMenu.setOnClickListener(v -> showMainMenu());
+        }
     }
 
     private void showMainMenu() {
