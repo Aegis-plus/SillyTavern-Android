@@ -213,33 +213,29 @@ public class MainActivity extends BridgeActivity {
                 if (webView != null && webView.canGoBack()) {
                     webView.goBack();
                 } else {
-                    // Check if we are at root/main menu
-                    boolean atRoot = false;
+                    // Check if we are at root/main menu AND on localhost
+                    boolean atLocalRoot = false;
                     String currentUrl = webView != null ? webView.getUrl() : null;
                     if (currentUrl != null) {
                         Uri uri = Uri.parse(currentUrl);
+                        String host = uri.getHost();
                         String path = uri.getPath();
-                        String fragment = uri.getFragment();
-                        // Consider it root if path is empty/root/index.html and no navigation fragment
+
+                        boolean isLocalhost = host != null
+                                && (host.equalsIgnoreCase("localhost") || host.equals("127.0.0.1"));
                         boolean isRootPath = path == null || path.isEmpty() || path.equals("/")
                                 || path.equals("/index.html");
-                        boolean isRootFragment = fragment == null || fragment.isEmpty() || fragment.equals("/");
-                        atRoot = isRootPath && isRootFragment;
+
+                        atLocalRoot = isLocalhost && isRootPath;
                     }
 
-                    if (!atRoot && webView != null && currentUrl != null) {
-                        // Navigate to root instead of exiting
-                        try {
-                            Uri uri = Uri.parse(currentUrl);
-                            String rootUrl = uri.getScheme() + "://" + uri.getAuthority() + "/";
-                            webView.loadUrl(rootUrl);
-                        } catch (Exception e) {
-                            // Fallback if parsing fails
-                            setEnabled(false);
-                            getOnBackPressedDispatcher().onBackPressed();
+                    if (!atLocalRoot) {
+                        // If not at local root (e.g. remote root), go to Launcher
+                        if (webView != null) {
+                            webView.loadUrl("http://localhost/index.html");
                         }
                     } else {
-                        // Standard system back behavior (minimize app)
+                        // Standard system back behavior (minimize/exit app)
                         setEnabled(false);
                         getOnBackPressedDispatcher().onBackPressed();
                     }

@@ -187,6 +187,8 @@ function syncAuthToNative() {
 function connect() {
     const url = localStorage.getItem(STORAGE_KEY);
     if (url) {
+        // Mark as redirected so we don't auto-redirect again if user comes back
+        sessionStorage.setItem('sillytavern_redirected', 'true');
         window.location.href = url;
     }
 }
