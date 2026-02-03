@@ -42,7 +42,6 @@ public class MainActivity extends BridgeActivity {
     private static final String KEY_AUTH_USER = "auth_user";
     private static final String KEY_AUTH_PASS = "auth_pass";
     private static final String KEY_BACKGROUND_MODE = "background_mode";
-    private SwipeRefreshLayout swipeRefreshLayout;
 
     private static final String KEY_ZOOM_LEVEL = "sillytavern_zoom_level";
     private LinearLayout rootLayout;
@@ -336,6 +335,80 @@ public class MainActivity extends BridgeActivity {
                 return true;
             }
         });
+    }
+
+    private void syncBackgroundService() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        boolean enabled = prefs.getBoolean(KEY_BACKGROUND_MODE, false);
+        Intent serviceIntent = new Intent(this, KeepAliveService.class);
+        if (enabled) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent);
+            } else {
+                startService(serviceIntent);
+            }
+        } else {
+            stopService(serviceIntent);
+        }
+    }
+
+    public class BackgroundBridge {
+        Context mContext;
+
+        BackgroundBridge(Context c) {
+            mContext = c;
+        }
+
+        @JavascriptInterface
+        public void setBackgroundMode(boolean enabled) {
+            SharedPreferences prefs = mContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            prefs.edit().putBoolean(KEY_BACKGROUND_MODE, enabled).apply();
+            syncBackgroundService();
+        }
+
+        @JavascriptInterface
+        public boolean isIgnoringBatteryOptimizations() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PowerManager pm = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
+                return pm.isIgnoringBatteryOptimizations(mContext.getPackageName());
+            }
+            return true;
+        }
+
+        @JavascriptInterface
+        public void requestIgnoreBatteryOptimizations() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                intent.setData(Uri.parse("package:" + mContext.getPackageName()));
+                mContext.startActivity(intent);
+            }
+        }
+    }
+
+    public class AuthBridge {
+        Context mContext;
+
+        AuthBridge(Context c) {
+            mContext = c;
+        }
+
+        @JavascriptInterface
+        public void setCredentials(String user, String pass) {
+            SharedPreferences prefs = getSafeSharedPreferences(mContext);
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.putString(KEY_AUTH_USER, user);
+            editor.putString(KEY_AUTH_PASS, pass);
+            editor.apply();
+        }
+
+        @JavascriptInterface
+        public void clearCredentials() {
+            SharedPreferences prefs = getSafeSharedPreferences(mContext);
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.remove(KEY_AUTH_USER);
+            editor.remove(KEY_AUTH_PASS);
+            editor.apply();
+        }
     }
 
     @Override
